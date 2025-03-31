@@ -170,33 +170,77 @@ const HygieneReportCard = ({
     }));
   };
 
-  const handleDownloadReport = () => {
+  const handleDownloadReport = async () => {
     const doc = new jsPDF();
+
+    // Add title and basic information
     doc.setFontSize(16);
     doc.text("Hygiene Assessment Report", 10, 10);
     doc.setFontSize(12);
     doc.text(`Overall Score: ${report.score}/100`, 10, 20);
     doc.text(`Overall Verdict: ${report.overallVerdict}`, 10, 30);
 
+    // Add detected issues
     doc.text("Detected Issues:", 10, 40);
     report.detectedIssues?.forEach((issue, index) => {
       doc.text(`${index + 1}. ${issue}`, 10, 50 + index * 10);
     });
 
-    doc.text(
-      "Recommendations:",
-      10,
-      60 + (report.detectedIssues?.length || 0) * 10
-    );
+    // Add recommendations
+    const issuesHeight = 60 + (report.detectedIssues?.length || 0) * 10;
+    doc.text("Recommendations:", 10, issuesHeight);
     report.recommendations.forEach((rec, index) => {
-      doc.text(
-        `${index + 1}. ${rec}`,
-        10,
-        70 + (report.detectedIssues?.length || 0) * 10 + index * 10
-      );
+      doc.text(`${index + 1}. ${rec}`, 10, issuesHeight + 10 + index * 10);
     });
 
-    doc.save("Hygiene_Report.pdf");
+    // Add uploaded image
+    if (originalImage) {
+      const imgHeight = issuesHeight + 30 + report.recommendations.length * 10;
+      const img = new Image();
+      img.src = originalImage;
+      await new Promise((resolve) => {
+        img.onload = () => {
+          doc.addImage(img, "JPEG", 10, imgHeight, 90, 60);
+          resolve(null);
+        };
+        img.onerror = () => {
+          console.error("Failed to load uploaded image.");
+          resolve(null);
+        };
+      });
+      doc.text("Uploaded Image", 10, imgHeight + 65);
+    }
+
+    // Add marked image
+    if (report.markedImageData) {
+      const markedImgHeight =
+        issuesHeight + 100 + report.recommendations.length * 10;
+      const markedImg = new Image();
+      markedImg.src = report.markedImageData;
+      await new Promise((resolve) => {
+        markedImg.onload = () => {
+          doc.addImage(markedImg, "JPEG", 110, markedImgHeight - 70, 90, 60);
+          resolve(null);
+        };
+        markedImg.onerror = () => {
+          console.error("Failed to load marked image.");
+          resolve(null);
+        };
+      });
+      doc.text("Marked Image", 110, markedImgHeight - 5);
+    }
+
+    // Generate filename with date and time
+    const now = new Date();
+    const formattedDate = now
+      .toISOString()
+      .replace("T", "_")
+      .replace(/:/g, "-")
+      .split(".")[0]; // Format: YYYY-MM-DD_HH-MM-SS
+    const filename = `Hygiene_Report_${formattedDate}.pdf`;
+
+    // Save the PDF
+    doc.save(filename);
   };
 
   if (isLoading) {

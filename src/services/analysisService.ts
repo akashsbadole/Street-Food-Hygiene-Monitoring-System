@@ -45,6 +45,15 @@ const processImageWithTensorFlow = async (imageData: string): Promise<any> => {
     uncleanUtensils: Math.random() > 0.6,
     openFood: Math.random() > 0.5,
     noMask: Math.random() > 0.5,
+    dirtyClothing: Math.random() > 0.5,
+    exposedTrash: Math.random() > 0.5,
+    dirtyUtensils: Math.random() > 0.5,
+    improperStorage: Math.random() > 0.5,
+    visiblePests: Math.random() > 0.5,
+    handDirt: Math.random() > 0.5, // New: Detect visible dirt on hands
+    expiredFood: Math.random() > 0.5, // New: Detect expired or stale food
+    spillage: Math.random() > 0.5, // New: Detect liquid spills or garbage on the floor
+    airQualityPoor: Math.random() > 0.5, // New: Simulate poor air quality detection
   };
 
   // Generate detection points for each issue (in a real app, these would come from the model)
@@ -76,6 +85,15 @@ const processImageWithTensorFlow = async (imageData: string): Promise<any> => {
       uncleanUtensils: Math.random() * 0.5 + 0.5,
       openFood: Math.random() * 0.5 + 0.5,
       noMask: Math.random() * 0.5 + 0.5,
+      dirtyClothing: Math.random() * 0.5 + 0.5,
+      exposedTrash: Math.random() * 0.5 + 0.5,
+      dirtyUtensils: Math.random() * 0.5 + 0.5,
+      improperStorage: Math.random() * 0.5 + 0.5,
+      visiblePests: Math.random() * 0.5 + 0.5,
+      handDirt: Math.random() * 0.5 + 0.5, // New parameter
+      expiredFood: Math.random() * 0.5 + 0.5, // New parameter
+      spillage: Math.random() * 0.5 + 0.5, // New parameter
+      airQualityPoor: Math.random() * 0.5 + 0.5, // New parameter
     },
     markedImageData,
     hygieneIssues: Object.values(detectionPoints),
@@ -112,6 +130,15 @@ const createMarkedImage = (imageData: string, detectionPoints: any, detectionRes
         uncleanUtensils: '#6B5CA5',   // Purple
         openFood: '#72B01D',         // Green
         noMask: '#F038FF',           // Pink
+        dirtyClothing: '#A52A2A',    // Brown
+        exposedTrash: '#808080',     // Gray
+        dirtyUtensils: '#8B0000',    // Dark Red
+        improperStorage: '#4682B4',  // Steel Blue
+        visiblePests: '#FFD700',     // Gold
+        handDirt: '#FF4500',         // Orange Red
+        expiredFood: '#8B4513',      // Saddle Brown
+        spillage: '#2F4F4F',         // Dark Slate Gray
+        airQualityPoor: '#708090',   // Slate Gray
       };
       
       // Map issue keys to readable labels
@@ -123,6 +150,15 @@ const createMarkedImage = (imageData: string, detectionPoints: any, detectionRes
         uncleanUtensils: 'Unclean Utensils',
         openFood: 'Exposed Food',
         noMask: 'No Mask',
+        dirtyClothing: 'Dirty Clothing',
+        exposedTrash: 'Exposed Trash',
+        dirtyUtensils: 'Dirty Utensils',
+        improperStorage: 'Improper Storage',
+        visiblePests: 'Visible Pests',
+        handDirt: 'Hand Dirt',
+        expiredFood: 'Expired Food',
+        spillage: 'Spillage',
+        airQualityPoor: 'Poor Air Quality',
       };
       
       Object.entries(detectionResults).forEach(([issue, detected]) => {
@@ -179,9 +215,9 @@ export const analyzeImage = async (imageData: string): Promise<HygieneReport> =>
   // Ensure all hygiene aspects are included
   const cleanliness = detection.detectionResults.uncleanSurface ? "Poor" : "Good";
   const foodHandling = detection.detectionResults.improperFoodHandling || detection.detectionResults.openFood ? "Poor" : "Good";
-  const personalHygiene = detection.detectionResults.noGloves || detection.detectionResults.noHairCover || detection.detectionResults.noMask ? "Poor" : "Good";
-  const workstation = detection.detectionResults.uncleanSurface ? "Poor" : "Good";
-  const utensils = detection.detectionResults.uncleanUtensils ? "Poor" : "Good";
+  const personalHygiene = detection.detectionResults.noGloves || detection.detectionResults.noHairCover || detection.detectionResults.noMask || detection.detectionResults.dirtyClothing || detection.detectionResults.handDirt ? "Poor" : "Good";
+  const workstation = detection.detectionResults.uncleanSurface || detection.detectionResults.exposedTrash || detection.detectionResults.spillage ? "Poor" : "Good";
+  const utensils = detection.detectionResults.uncleanUtensils || detection.detectionResults.dirtyUtensils ? "Poor" : "Good";
 
   const detectedIssues = [];
   if (detection.detectionResults.noGloves) detectedIssues.push("No gloves worn when handling food");
@@ -191,14 +227,23 @@ export const analyzeImage = async (imageData: string): Promise<HygieneReport> =>
   if (detection.detectionResults.uncleanUtensils) detectedIssues.push("Unclean utensils");
   if (detection.detectionResults.openFood) detectedIssues.push("Food exposed to open air/contaminants");
   if (detection.detectionResults.noMask) detectedIssues.push("No mask worn");
+  if (detection.detectionResults.dirtyClothing) detectedIssues.push("Dirty clothing worn by vendor");
+  if (detection.detectionResults.exposedTrash) detectedIssues.push("Exposed trash near food preparation area");
+  if (detection.detectionResults.dirtyUtensils) detectedIssues.push("Dirty utensils used for food preparation");
+  if (detection.detectionResults.improperStorage) detectedIssues.push("Improper storage of food items");
+  if (detection.detectionResults.visiblePests) detectedIssues.push("Visible pests near food preparation area");
+  if (detection.detectionResults.handDirt) detectedIssues.push("Visible dirt or stains on hands");
+  if (detection.detectionResults.expiredFood) detectedIssues.push("Expired or stale food detected");
+  if (detection.detectionResults.spillage) detectedIssues.push("Spillage or unclean floors detected");
+  if (detection.detectionResults.airQualityPoor) detectedIssues.push("Poor air quality detected near the vendor");
 
   const score = Math.max(0, 100 - detectedIssues.length * 15);
 
   const overallVerdict = score >= 80
-    ? "Good hygiene practices with minor improvements needed."
+    ? "This vendor is safe and maintains good hygiene practices with minor improvements needed."
     : score >= 60
-    ? "Acceptable hygiene with several areas requiring improvement."
-    : "Significant hygiene concerns requiring immediate attention.";
+    ? "This vendor is moderately safe but requires several hygiene improvements."
+    : "This vendor is unsafe and has significant hygiene concerns requiring immediate attention.";
 
   const recommendations = [
     ...(detection.detectionResults.noGloves ? ["Wear gloves when handling food."] : []),
@@ -208,6 +253,15 @@ export const analyzeImage = async (imageData: string): Promise<HygieneReport> =>
     ...(detection.detectionResults.uncleanUtensils ? ["Clean utensils thoroughly before use."] : []),
     ...(detection.detectionResults.openFood ? ["Cover food to prevent contamination."] : []),
     ...(detection.detectionResults.noMask ? ["Wear a mask to maintain hygiene."] : []),
+    ...(detection.detectionResults.dirtyClothing ? ["Ensure clean clothing is worn during food preparation."] : []),
+    ...(detection.detectionResults.exposedTrash ? ["Remove trash from food preparation areas."] : []),
+    ...(detection.detectionResults.dirtyUtensils ? ["Ensure utensils are cleaned and sanitized before use."] : []),
+    ...(detection.detectionResults.improperStorage ? ["Store food items properly to avoid contamination."] : []),
+    ...(detection.detectionResults.visiblePests ? ["Implement pest control measures to ensure hygiene."] : []),
+    ...(detection.detectionResults.handDirt ? ["Wash hands thoroughly before handling food."] : []),
+    ...(detection.detectionResults.expiredFood ? ["Dispose of expired or stale food immediately."] : []),
+    ...(detection.detectionResults.spillage ? ["Clean up spills and maintain clean floors."] : []),
+    ...(detection.detectionResults.airQualityPoor ? ["Improve air quality by avoiding smoke or harmful gases near the stall."] : []),
   ];
 
   return {
