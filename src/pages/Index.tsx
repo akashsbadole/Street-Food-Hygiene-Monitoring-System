@@ -1,14 +1,13 @@
-
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/components/ui/use-toast';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import ImageUploader from '@/components/ImageUploader';
-import HygieneReportCard, { HygieneReport } from '@/components/HygieneReport';
-import { analyzeImage } from '@/services/analysisService';
-import { Loader2 } from 'lucide-react';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/use-toast";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import ImageUploader from "@/components/ImageUploader";
+import HygieneReportCard, { HygieneReport } from "@/components/HygieneReport";
+import { analyzeImage } from "@/services/analysisService";
+import { Loader2 } from "lucide-react";
 
 const Index = () => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -55,7 +54,7 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      
+
       <main className="flex-grow">
         {/* Hero Section */}
         <section className="bg-gradient-to-r from-street-yellow to-street-orange py-16">
@@ -67,18 +66,24 @@ const Index = () => {
                     Ensuring Health Safety in Street Food
                   </h1>
                   <p className="max-w-[600px] text-white md:text-xl">
-                    Our AI-powered platform helps monitor and improve hygiene 
-                    standards among street food vendors, making street food safer for everyone.
+                    Our AI-powered platform helps monitor and improve hygiene
+                    standards among street food vendors, making street food
+                    safer for everyone.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Button 
+                  <Button
                     className="bg-white text-street-orange hover:bg-gray-100"
-                    onClick={() => window.scrollTo({ top: 500, behavior: 'smooth' })}
+                    onClick={() =>
+                      window.scrollTo({ top: 500, behavior: "smooth" })
+                    }
                   >
                     Get Started
                   </Button>
-                  <Button variant="outline" className="border-white text-white hover:bg-white/10">
+                  <Button
+                    variant="outline"
+                    className="border-white text-black hover:bg-white/10"
+                  >
                     Learn More
                   </Button>
                 </div>
@@ -92,21 +97,29 @@ const Index = () => {
           <div className="container px-4 md:px-6">
             <div className="mx-auto max-w-3xl space-y-8">
               <div className="text-center space-y-2">
-                <h2 className="text-3xl font-bold tracking-tight">Analyze Vendor Hygiene</h2>
+                <h2 className="text-3xl font-bold tracking-tight">
+                  Analyze Vendor Hygiene
+                </h2>
                 <p className="text-muted-foreground">
-                  Upload an image of a street food vendor to get an AI-powered 
+                  Upload an image of a street food vendor to get an AI-powered
                   hygiene assessment and recommendations.
                 </p>
               </div>
-              
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+
+              <Tabs
+                value={activeTab}
+                onValueChange={setActiveTab}
+                className="w-full"
+              >
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="upload">Upload Image</TabsTrigger>
-                  <TabsTrigger value="report" disabled={!report}>View Report</TabsTrigger>
+                  <TabsTrigger value="report" disabled={!report}>
+                    View Report
+                  </TabsTrigger>
                 </TabsList>
                 <TabsContent value="upload" className="space-y-6">
                   <ImageUploader onImageUploaded={handleImageUploaded} />
-                  <Button 
+                  <Button
                     className="w-full bg-street-orange hover:bg-street-orange/90 text-white"
                     onClick={handleAnalyzeImage}
                     disabled={!uploadedImage || isAnalyzing}
@@ -117,12 +130,18 @@ const Index = () => {
                         Analyzing...
                       </>
                     ) : (
-                      'Analyze Hygiene'
+                      "Analyze Hygiene"
                     )}
                   </Button>
                 </TabsContent>
                 <TabsContent value="report">
-                  {report && <HygieneReportCard report={report} originalImage={uploadedImage} />}
+                  {report && (
+                    <HygieneReportCard
+                      report={report}
+                      originalImage={uploadedImage}
+                      hygieneIssues={report.hygieneIssues} // Pass hygiene issues data
+                    />
+                  )}
                 </TabsContent>
               </Tabs>
             </div>
@@ -135,43 +154,52 @@ const Index = () => {
             <div className="text-center space-y-4 mb-8">
               <h2 className="text-3xl font-bold">How It Works</h2>
               <p className="text-muted-foreground max-w-[700px] mx-auto">
-                Our system uses advanced AI to analyze vendor hygiene and provide 
-                actionable recommendations for improvement.
+                Our system uses advanced AI to analyze vendor hygiene and
+                provide actionable recommendations for improvement.
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="bg-white p-6 rounded-lg shadow-sm">
                 <div className="bg-street-yellow/20 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                  <span className="text-street-orange text-xl font-bold">1</span>
+                  <span className="text-street-orange text-xl font-bold">
+                    1
+                  </span>
                 </div>
                 <h3 className="font-bold text-lg mb-2">Upload</h3>
                 <p className="text-muted-foreground">
-                  Take a photo of the street food vendor or upload an existing image.
+                  Take a photo of the street food vendor or upload an existing
+                  image.
                 </p>
               </div>
               <div className="bg-white p-6 rounded-lg shadow-sm">
                 <div className="bg-street-yellow/20 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                  <span className="text-street-orange text-xl font-bold">2</span>
+                  <span className="text-street-orange text-xl font-bold">
+                    2
+                  </span>
                 </div>
                 <h3 className="font-bold text-lg mb-2">Analyze</h3>
                 <p className="text-muted-foreground">
-                  Our AI system analyzes the image for hygiene practices and standards.
+                  Our AI system analyzes the image for hygiene practices and
+                  standards.
                 </p>
               </div>
               <div className="bg-white p-6 rounded-lg shadow-sm">
                 <div className="bg-street-yellow/20 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                  <span className="text-street-orange text-xl font-bold">3</span>
+                  <span className="text-street-orange text-xl font-bold">
+                    3
+                  </span>
                 </div>
                 <h3 className="font-bold text-lg mb-2">Improve</h3>
                 <p className="text-muted-foreground">
-                  Receive detailed reports and recommendations to improve food safety.
+                  Receive detailed reports and recommendations to improve food
+                  safety.
                 </p>
               </div>
             </div>
           </div>
         </section>
       </main>
-      
+
       <Footer />
     </div>
   );

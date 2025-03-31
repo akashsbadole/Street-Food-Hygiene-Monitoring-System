@@ -1,4 +1,3 @@
-
 // Analysis service using TensorFlow.js for hygiene detection
 
 import { HygieneReport } from "@/components/HygieneReport";
@@ -79,6 +78,7 @@ const processImageWithTensorFlow = async (imageData: string): Promise<any> => {
       noMask: Math.random() * 0.5 + 0.5,
     },
     markedImageData,
+    hygieneIssues: Object.values(detectionPoints),
   };
 };
 
@@ -128,10 +128,9 @@ const createMarkedImage = (imageData: string, detectionPoints: any, detectionRes
       Object.entries(detectionResults).forEach(([issue, detected]) => {
         if (detected && detectionPoints[issue]) {
           const point = detectionPoints[issue];
-          const color = issueColors[issue as keyof typeof issueColors] || '#FF0000';
           
           // Draw dotted circle
-          ctx.strokeStyle = color;
+          ctx.strokeStyle = '#FF0000'; // Red color for dotted circles
           ctx.lineWidth = 3;
           ctx.setLineDash([5, 3]); // Set line to dotted pattern
           ctx.beginPath();
@@ -139,8 +138,8 @@ const createMarkedImage = (imageData: string, detectionPoints: any, detectionRes
           ctx.stroke();
           ctx.setLineDash([]); // Reset line dash
           
-          // Add label with arrow pointing to the issue
-          ctx.fillStyle = color;
+          // Add label with red background
+          ctx.fillStyle = '#FF0000'; // Red background for labels
           ctx.font = '16px sans-serif';
           const label = issueLabels[issue as keyof typeof issueLabels] || issue;
           const textWidth = ctx.measureText(label).width;
@@ -152,16 +151,9 @@ const createMarkedImage = (imageData: string, detectionPoints: any, detectionRes
           // Draw background for text
           ctx.fillRect(textX - 5, textY - 20, textWidth + 10, 25);
           
-          // Draw text
+          // Draw text in white for contrast
           ctx.fillStyle = '#FFFFFF';
           ctx.fillText(label, textX, textY);
-          
-          // Draw arrow pointing to the issue
-          ctx.strokeStyle = color;
-          ctx.beginPath();
-          ctx.moveTo(textX + textWidth / 2, textY);
-          ctx.lineTo(point.x, point.y - point.radius);
-          ctx.stroke();
         }
       });
       
@@ -182,31 +174,15 @@ const createMarkedImage = (imageData: string, detectionPoints: any, detectionRes
 
 // Generate a report based on detected issues
 export const analyzeImage = async (imageData: string): Promise<HygieneReport> => {
-  // Process the image with TensorFlow.js
   const detection = await processImageWithTensorFlow(imageData);
-  
-  // Count detected issues
-  const issues = Object.values(detection.detectionResults).filter(Boolean).length;
-  
-  // Calculate score based on detected issues
-  // More issues = lower score
-  const score = Math.max(0, 100 - (issues * 15));
-  
-  // Determine status for each category
-  const getStatusFromDetection = (category: keyof typeof detection.detectionResults) => {
-    if (!detection.detectionResults[category]) return "Good";
-    const confidence = detection.detectionConfidence[category];
-    return confidence > 0.8 ? "Poor" : "Fair";
-  };
-  
-  // Set statuses based on detections
+
+  // Ensure all hygiene aspects are included
   const cleanliness = detection.detectionResults.uncleanSurface ? "Poor" : "Good";
   const foodHandling = detection.detectionResults.improperFoodHandling || detection.detectionResults.openFood ? "Poor" : "Good";
   const personalHygiene = detection.detectionResults.noGloves || detection.detectionResults.noHairCover || detection.detectionResults.noMask ? "Poor" : "Good";
   const workstation = detection.detectionResults.uncleanSurface ? "Poor" : "Good";
   const utensils = detection.detectionResults.uncleanUtensils ? "Poor" : "Good";
-  
-  // Generate specific issues detected
+
   const detectedIssues = [];
   if (detection.detectionResults.noGloves) detectedIssues.push("No gloves worn when handling food");
   if (detection.detectionResults.noHairCover) detectedIssues.push("No hair cover/cap worn");
@@ -215,49 +191,25 @@ export const analyzeImage = async (imageData: string): Promise<HygieneReport> =>
   if (detection.detectionResults.uncleanUtensils) detectedIssues.push("Unclean utensils");
   if (detection.detectionResults.openFood) detectedIssues.push("Food exposed to open air/contaminants");
   if (detection.detectionResults.noMask) detectedIssues.push("No mask worn");
-  
-  // Generate verdict based on score
-  let overallVerdict = "";
-  const recommendations: string[] = [];
-  
-  if (score >= 80) {
-    overallVerdict = "This vendor maintains generally good hygiene practices. Minor improvements could enhance food safety.";
-    if (detectedIssues.length > 0) {
-      overallVerdict += " The following issues were detected: " + detectedIssues.join(", ") + ".";
-    }
-    recommendations.push("Continue maintaining current hygiene standards");
-    if (detection.detectionResults.noGloves) {
-      recommendations.push("Wear gloves when handling ready-to-eat food");
-    }
-    if (detection.detectionResults.noHairCover) {
-      recommendations.push("Use hair cover/cap to prevent contamination");
-    }
-  } else if (score >= 60) {
-    overallVerdict = "This vendor has acceptable hygiene with several areas requiring improvement. The following issues were detected: " + detectedIssues.join(", ") + ".";
-    recommendations.push("Implement proper hand washing techniques and frequency");
-    if (detection.detectionResults.noGloves) {
-      recommendations.push("Always wear clean gloves when handling food");
-    }
-    if (detection.detectionResults.noHairCover) {
-      recommendations.push("Wear appropriate head covering to contain hair");
-    }
-    if (detection.detectionResults.uncleanSurface) {
-      recommendations.push("Clean and sanitize food preparation surfaces regularly");
-    }
-    if (detection.detectionResults.improperFoodHandling) {
-      recommendations.push("Follow proper food handling procedures to prevent cross-contamination");
-    }
-  } else {
-    overallVerdict = "This vendor has significant hygiene concerns that need immediate attention. The following issues were detected: " + detectedIssues.join(", ") + ".";
-    recommendations.push("Implement proper hand washing stations");
-    recommendations.push("Use gloves when handling ready-to-eat foods");
-    recommendations.push("Wear clean uniform, mask, and hair cover/cap");
-    recommendations.push("Maintain cleanliness of food preparation areas");
-    recommendations.push("Store food at proper temperatures");
-    recommendations.push("Clean utensils and equipment thoroughly");
-    recommendations.push("Consider hygiene training and certification");
-  }
-  
+
+  const score = Math.max(0, 100 - detectedIssues.length * 15);
+
+  const overallVerdict = score >= 80
+    ? "Good hygiene practices with minor improvements needed."
+    : score >= 60
+    ? "Acceptable hygiene with several areas requiring improvement."
+    : "Significant hygiene concerns requiring immediate attention.";
+
+  const recommendations = [
+    ...(detection.detectionResults.noGloves ? ["Wear gloves when handling food."] : []),
+    ...(detection.detectionResults.noHairCover ? ["Use a hair cover/cap to prevent contamination."] : []),
+    ...(detection.detectionResults.uncleanSurface ? ["Clean and sanitize food preparation surfaces regularly."] : []),
+    ...(detection.detectionResults.improperFoodHandling ? ["Follow proper food handling procedures."] : []),
+    ...(detection.detectionResults.uncleanUtensils ? ["Clean utensils thoroughly before use."] : []),
+    ...(detection.detectionResults.openFood ? ["Cover food to prevent contamination."] : []),
+    ...(detection.detectionResults.noMask ? ["Wear a mask to maintain hygiene."] : []),
+  ];
+
   return {
     score,
     cleanliness,
@@ -268,6 +220,7 @@ export const analyzeImage = async (imageData: string): Promise<HygieneReport> =>
     overallVerdict,
     recommendations,
     detectedIssues,
-    markedImageData: detection.markedImageData // Adding the marked image to the report
+    markedImageData: detection.markedImageData,
+    hygieneIssues: detection.hygieneIssues,
   };
 };
