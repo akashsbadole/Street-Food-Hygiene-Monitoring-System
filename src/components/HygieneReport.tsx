@@ -46,12 +46,28 @@ export interface HygieneReport {
   recommendations: string[];
   detectedIssues?: string[];
   markedImageData?: string;
+  healthRisks: string[];
+  hygieneCheckList: {
+    personalHygiene: HygieneCheck[];
+    foodSafety: HygieneCheck[];
+    waterQuality: HygieneCheck[];
+    equipmentCleanliness: HygieneCheck[];
+    wasteManagement: HygieneCheck[];
+    pestControl: HygieneCheck[];
+  };
 }
 
 export interface HygieneIssue {
   x: number;
   y: number;
   radius: number;
+}
+
+interface HygieneCheck {
+  item: string;
+  status: string;
+  risk: string;
+  recommendation: string;
 }
 
 interface HygieneReportCardProps {
@@ -157,6 +173,24 @@ const hygieneStandards = {
     ],
   },
 };
+
+const HygieneChecklist = ({ checks }: { checks: HygieneCheck[] }) => (
+  <div className="bg-gray-50 p-4 rounded-lg">
+    <h4 className="font-semibold mb-2">Hygiene Checklist</h4>
+    <div className="space-y-2">
+      {checks.map((check, index) => (
+        <div key={index} className="flex items-center justify-between">
+          <span>{check.item}</span>
+          <Badge
+            variant={check.status === "Missing" ? "destructive" : "outline"}
+          >
+            {check.status}
+          </Badge>
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 const HygieneReportCard = ({
   report,
@@ -310,6 +344,29 @@ const HygieneReportCard = ({
       });
       doc.text("Marked Image with Hygiene Issues", 10, 225);
     }
+
+    // Add hygiene checklist to PDF
+    doc.addPage();
+    doc.setFontSize(16);
+    doc.text("Detailed Hygiene Checklist", 105, 20, { align: "center" });
+
+    yPos = 40;
+    Object.entries(report.hygieneCheckList).forEach(([category, checks]) => {
+      doc.setFontSize(14);
+      doc.text(category.replace(/([A-Z])/g, " $1").trim(), 20, yPos);
+      yPos += 10;
+
+      checks.forEach((check) => {
+        doc.setFontSize(12);
+        doc.text(
+          `• ${check.item}: ${check.status} (Risk: ${check.risk})`,
+          25,
+          yPos
+        );
+        yPos += 10;
+      });
+      yPos += 5;
+    });
 
     // Generate filename with date and time
     const now = new Date();
@@ -584,6 +641,17 @@ Analyzed by: Kash Bado`;
             ))}
           </ul>
         </div>
+
+        {/* Hygiene Checklist Section */}
+        {report.hygieneCheckList && (
+          <div className="space-y-4">
+            {Object.entries(report.hygieneCheckList).map(
+              ([category, checks]) => (
+                <HygieneChecklist key={category} checks={checks} />
+              )
+            )}
+          </div>
+        )}
       </CardContent>
       <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4">
