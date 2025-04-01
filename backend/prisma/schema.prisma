@@ -4,12 +4,14 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL") // Use the SQLite connection string
+  url      = env("DATABASE_URL")
 }
 
 model AnalysisData {
   id             Int      @id @default(autoincrement())
   imageUrl       String
-  analysisResult String   // Change from Json to String
-  timestamp      DateTime
+  analysisResult String
+  timestamp      DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }

@@ -64,3 +64,15 @@ Update the `scripts` section to remove the `prisma:migrate` command.
 This ensures that you can continue using Prisma with MongoDB without running into unsupported commands.
 
 Made changes.
+
+# Generate Prisma client
+
+npx prisma generate
+
+# Create SQLite database and apply migrations
+
+npx prisma migrate dev --name init
+
+# Verify database
+
+npx prisma studio

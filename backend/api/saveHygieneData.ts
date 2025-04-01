@@ -1,7 +1,7 @@
-import { createRouter } from "express"; // Use createRouter for express@5.x.x
+import { Router } from "express"; // Change this line to use Router
 import { saveAnalysisData } from "../databaseService";
 
-const router = createRouter(); // Use createRouter instead of Router()
+const router = Router(); // Initialize router correctly
 
 // POST route to save hygiene data
 router.post("/saveHygieneData", async (req, res) => {

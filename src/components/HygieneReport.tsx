@@ -173,24 +173,89 @@ const HygieneReportCard = ({
   const handleDownloadReport = async () => {
     const doc = new jsPDF();
 
-    // Add title and basic information
-    doc.setFontSize(16);
-    doc.text("Hygiene Assessment Report", 10, 10);
-    doc.setFontSize(12);
-    doc.text(`Overall Score: ${report.score}/100`, 10, 20);
-    doc.text(`Overall Verdict: ${report.overallVerdict}`, 10, 30);
+    // Add header with logo (if available)
+    doc.setFontSize(24);
+    doc.setTextColor(255, 140, 0); // Street food orange color
+    doc.text("StreetFood Safety Projects", 105, 20, { align: "center" });
 
-    // Add detected issues
-    doc.text("Detected Issues:", 10, 40);
-    report.detectedIssues?.forEach((issue, index) => {
-      doc.text(`${index + 1}. ${issue}`, 10, 50 + index * 10);
+    // Add author and date
+    doc.setFontSize(12);
+    doc.setTextColor(100);
+    doc.text("Analysis by: Kash Bado", 105, 30, { align: "center" });
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 105, 35, {
+      align: "center",
     });
 
-    // Add recommendations
-    const issuesHeight = 60 + (report.detectedIssues?.length || 0) * 10;
-    doc.text("Recommendations:", 10, issuesHeight);
-    report.recommendations.forEach((rec, index) => {
-      doc.text(`${index + 1}. ${rec}`, 10, issuesHeight + 10 + index * 10);
+    // Add divider
+    doc.line(20, 40, 190, 40);
+
+    // Add score with color coding
+    doc.setFontSize(16);
+    doc.setTextColor(
+      report.score >= 80 ? 0 : report.score >= 60 ? 255 : 255,
+      report.score >= 80 ? 150 : report.score >= 60 ? 140 : 0,
+      0
+    );
+    doc.text(`Overall Hygiene Score: ${report.score}/100`, 105, 50, {
+      align: "center",
+    });
+
+    // Add detailed sections
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+
+    // Critical Issues Section
+    doc.text("Critical Hygiene Issues:", 20, 70);
+    const criticalIssues =
+      report.detectedIssues?.filter(
+        (issue) =>
+          issue.toLowerCase().includes("mask") ||
+          issue.toLowerCase().includes("gloves") ||
+          issue.toLowerCase().includes("food cover")
+      ) || [];
+
+    criticalIssues.forEach((issue, index) => {
+      doc.setTextColor(255, 0, 0);
+      doc.text(`• ${issue}`, 25, 80 + index * 10);
+    });
+
+    // Recommendations Section with Categories
+    doc.addPage();
+    doc.setFontSize(16);
+    doc.setTextColor(0);
+    doc.text("Detailed Recommendations", 105, 20, { align: "center" });
+
+    const categories = {
+      "Personal Hygiene": report.recommendations.filter(
+        (r) =>
+          r.toLowerCase().includes("mask") ||
+          r.toLowerCase().includes("gloves") ||
+          r.toLowerCase().includes("hand")
+      ),
+      "Food Handling": report.recommendations.filter(
+        (r) =>
+          r.toLowerCase().includes("food") ||
+          r.toLowerCase().includes("storage") ||
+          r.toLowerCase().includes("temperature")
+      ),
+      // Add more categories...
+    };
+
+    let yPos = 40;
+    Object.entries(categories).forEach(([category, recs]) => {
+      if (recs.length > 0) {
+        doc.setFontSize(14);
+        doc.setTextColor(0);
+        doc.text(category, 20, yPos);
+        yPos += 10;
+
+        recs.forEach((rec) => {
+          doc.setFontSize(12);
+          doc.text(`• ${rec}`, 25, yPos);
+          yPos += 10;
+        });
+        yPos += 5;
+      }
     });
 
     // Add a second page for images

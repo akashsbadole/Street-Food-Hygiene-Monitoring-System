@@ -15,15 +15,15 @@ export const saveAnalysisData = async (data: {
   try {
     const response = await prisma.analysisData.create({
       data: {
-        ...data,
+        imageUrl: data.imageUrl,
         analysisResult: JSON.stringify(data.analysisResult), // Convert JSON to string
+        timestamp: new Date(data.timestamp), // Convert timestamp to Date object
       },
     });
-    console.log("Data saved successfully:", response);
-    return response;
+    return { success: true, data: response };
   } catch (error) {
-    console.error("Error saving data to the database:", error); // Log the error
-    throw new Error("Failed to save analysis data to the database.");
+    console.error("Error saving data:", error); // Log the error
+    throw new Error("Failed to save analysis data");
   }
 };
 
