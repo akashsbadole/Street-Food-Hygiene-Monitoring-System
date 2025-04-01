@@ -74,6 +74,81 @@ const IMAGE_PROCESSING = {
   REGION_SIZE: [224, 224] // Standard input size
 };
 
+const HYGIENE_DETECTION_CONFIG = {
+  PPE: {
+    gloves: { threshold: 0.7, severity: 'critical' },
+    hairCover: { threshold: 0.7, severity: 'critical' },
+    cleanApron: { threshold: 0.6, severity: 'high' }
+  },
+  foodSafety: {
+    cleanPlates: { threshold: 0.75, severity: 'critical' },
+    coveredFood: { threshold: 0.8, severity: 'critical' },
+    bareHandContact: { threshold: 0.7, severity: 'critical' },
+    properStorage: { threshold: 0.7, severity: 'high' }
+  },
+  cleanliness: {
+    workSurface: { threshold: 0.75, severity: 'critical' },
+    utensils: { threshold: 0.7, severity: 'high' },
+    overallArea: { threshold: 0.7, severity: 'high' }
+  }
+};
+
+const HYGIENE_CATEGORIES = {
+  personalHygiene: {
+    handGloves: { threshold: 0.75, severity: 'critical', weight: 1.0 },
+    hairCover: { threshold: 0.75, severity: 'critical', weight: 1.0 },
+    faceMask: { threshold: 0.75, severity: 'critical', weight: 1.0 },
+    apron: { threshold: 0.7, severity: 'high', weight: 0.8 },
+    cleanNails: { threshold: 0.8, severity: 'critical', weight: 0.9 }
+  },
+  utensilEquipment: {
+    separateCuttingBoards: { threshold: 0.8, severity: 'critical', weight: 1.0 },
+    cleanServingUtensils: { threshold: 0.75, severity: 'critical', weight: 1.0 },
+    disposablePackaging: { threshold: 0.7, severity: 'high', weight: 0.8 }
+  },
+  foodSafetyHandling: {
+    properCooking: { threshold: 0.8, severity: 'critical', weight: 1.0 },
+    freshIngredients: { threshold: 0.75, severity: 'critical', weight: 1.0 },
+    separateRawCooked: { threshold: 0.8, severity: 'critical', weight: 1.0 }
+  },
+  stallEnvironment: {
+    coveredStall: { threshold: 0.7, severity: 'high', weight: 0.8 },
+    noFoodWaste: { threshold: 0.75, severity: 'high', weight: 0.9 },
+    potableWater: { threshold: 0.8, severity: 'critical', weight: 1.0 }
+  },
+  compliance: {
+    fssaiCertification: { threshold: 0.9, severity: 'critical', weight: 1.0 },
+    hygieneTraining: { threshold: 0.8, severity: 'high', weight: 0.9 }
+  }
+};
+
+const PPE_DETECTION = {
+  gloves: {
+    colorRange: {
+      light: [200, 200, 200], // for light colored gloves
+      dark: [50, 50, 50]      // for dark colored gloves
+    },
+    minArea: 0.05, // minimum area of image that should contain gloves
+    threshold: 0.7
+  },
+  hairCover: {
+    colorRange: {
+      white: [200, 200, 200],
+      blue: [0, 0, 200]
+    },
+    minArea: 0.1,
+    threshold: 0.7
+  },
+  faceMask: {
+    colorRange: {
+      white: [200, 200, 200],
+      blue: [0, 0, 200]
+    },
+    minArea: 0.05,
+    threshold: 0.7
+  }
+};
+
 interface Region {
   tensor: tf.Tensor3D;
   position: {
@@ -181,45 +256,29 @@ const analyzeImageRegions = async (tensor: tf.Tensor3D) => {
   const issues: any[] = [];
   const scores: number[] = [];
 
-  // Split image into regions
   const regions = splitImageIntoRegions(tensor);
   
   for (const [name, region] of Object.entries(regions)) {
-    // Analyze cleanliness
-    const cleanliness = await analyzeCleanliness(region);
-    scores.push(cleanliness.score);
+    // Personal Hygiene Analysis
+    const hygieneResults = await analyzePersonalHygiene(region);
+    scores.push(...hygieneResults.scores);
+    issues.push(...hygieneResults.issues);
 
-    if (cleanliness.score < IMAGE_PROCESSING.CLEANLINESS_THRESHOLD) {
-      issues.push({
-        type: 'cleanliness',
-        area: name,
-        severity: 'critical',
-        score: cleanliness.score,
-        details: `Poor cleanliness detected in ${name}`,
-        x: region.position?.x || 0,
-        y: region.position?.y || 0,
-        width: region.position?.width || 100,
-        height: region.position?.height || 100
-      });
-    }
+    // Utensil & Equipment Analysis
+    const utensilResults = await analyzeUtensils(region);
+    scores.push(...utensilResults.scores);
+    issues.push(...utensilResults.issues);
 
-    // Color analysis for food safety
-    const colorAnalysis = await analyzeColorPatterns(region);
-    if (colorAnalysis.isExposed) {
-      issues.push({
-        type: 'food_safety',
-        area: name,
-        severity: 'critical',
-        score: colorAnalysis.score,
-        details: 'Exposed food detected',
-        x: region.position?.x || 0,
-        y: region.position?.y || 0,
-        width: region.position?.width || 100,
-        height: region.position?.height || 100
-      });
-    }
+    // Food Safety Analysis
+    const foodSafetyResults = await analyzeFoodSafety(region);
+    scores.push(...Object.values(foodSafetyResults.scores));
+    issues.push(...foodSafetyResults.issues);
 
-    // Cleanup
+    // Stall Environment Analysis
+    const environmentResults = await analyzeEnvironment(region);
+    scores.push(...environmentResults.scores);
+    issues.push(...environmentResults.issues);
+
     region.tensor.dispose();
   }
 
@@ -242,6 +301,194 @@ const analyzeCleanliness = async (region: { tensor: tf.Tensor3D }) => {
   variance.dispose();
   
   return { score, isClean: score > IMAGE_PROCESSING.CLEANLINESS_THRESHOLD };
+};
+
+const detectPPEItem = async (region: Region, item: string): Promise<number> => {
+  const tensor = region.tensor;
+  let score = 0;
+
+  switch (item) {
+    case 'gloves':
+      // Check for glove-like shapes and colors in hand regions
+      const handRegions = await detectHandRegions(tensor);
+      if (handRegions.length > 0) {
+        const glovesScore = await analyzeGloves(tensor, handRegions);
+        score = glovesScore;
+      }
+      break;
+    case 'hairCover':
+      // Check for hair cover in upper region of image
+      const upperRegion = tensor.slice([0, 0, 0], [Math.floor(tensor.shape[0] * 0.3), tensor.shape[1], 3]);
+      score = await analyzeHairCover(upperRegion);
+      upperRegion.dispose();
+      break;
+    default:
+      // Generic detection for other PPE items
+      const grayscale = tf.mean(tensor, -1);
+      const variance = tf.moments(grayscale).variance;
+      const varianceVal = await variance.data();
+      score = 1 - Math.min(varianceVal[0] * 10, 1);
+      grayscale.dispose();
+      variance.dispose();
+  }
+
+  return score;
+};
+
+const analyzeHairCover = async (tensor: tf.Tensor3D): Promise<number> => {
+  // Check for hair cover colors and patterns
+  const meanColor = tf.mean(tensor, [0, 1]);
+  const colorValues = await meanColor.data();
+  
+  // Check if colors match typical hair cover patterns
+  const isHairCoverColor = (
+    // White hair covers
+    (colorValues[0] > 0.7 && colorValues[1] > 0.7 && colorValues[2] > 0.7) ||
+    // Blue hair covers
+    (colorValues[0] < 0.3 && colorValues[1] < 0.3 && colorValues[2] > 0.6)
+  );
+  
+  meanColor.dispose();
+  
+  return isHairCoverColor ? 1 : 0;
+};
+
+const analyzeGloves = async (tensor: tf.Tensor3D, handRegions: Array<[number, number, number, number]>): Promise<number> => {
+  const scores = await Promise.all(handRegions.map(async region => {
+    const [y, x, height, width] = region;
+    const handArea = tensor.slice([y, x, 0], [height, width, 3]);
+    
+    // Check for glove-like colors
+    const meanColor = tf.mean(handArea, [0, 1]);
+    const colorValues = await meanColor.data();
+    
+    // Check if colors match glove patterns
+    const isGloveColor = matchesGloveColor(colorValues);
+    
+    meanColor.dispose();
+    handArea.dispose();
+    
+    return isGloveColor ? 1 : 0;
+  }));
+  
+  return scores.reduce((a, b) => a + b, 0) / scores.length;
+};
+
+const matchesGloveColor = (color: ArrayLike<number>): boolean => {
+  const [r, g, b] = Array.from(color);
+  return (
+    // Light colored gloves
+    (r > 0.7 && g > 0.7 && b > 0.7) ||
+    // Blue gloves
+    (r < 0.3 && g < 0.3 && b > 0.6) ||
+    // Black gloves
+    (r < 0.3 && g < 0.3 && b < 0.3)
+  );
+};
+
+const analyzeFoodSafety = async (region: Region) => {
+  const issues = [];
+  const scores: Record<string, number> = {};
+
+  // Check for clean plates/utensils
+  const platesScore = await detectCleanPlates(region);
+  scores['cleanPlates'] = platesScore;
+  if (platesScore < HYGIENE_DETECTION_CONFIG.foodSafety.cleanPlates.threshold) {
+    issues.push({
+      type: 'foodSafety',
+      item: 'cleanPlates',
+      severity: HYGIENE_DETECTION_CONFIG.foodSafety.cleanPlates.severity,
+      score: platesScore,
+      details: 'Unclean plates/utensils detected',
+      recommendations: [
+        'Clean and sanitize all utensils',
+        'Use separate utensils for different foods',
+        'Store utensils in clean, covered area'
+      ]
+    });
+  }
+
+  return { issues, scores };
+};
+
+const analyzePersonalHygiene = async (region: Region) => {
+  const issues = [];
+  const scores: Record<string, number> = {};
+
+  // Check for PPE items
+  for (const [item, config] of Object.entries(HYGIENE_CATEGORIES.personalHygiene)) {
+    const score = await detectPPEItem(region, item);
+    scores[item] = score;
+
+    if (score < config.threshold) {
+      issues.push({
+        type: 'personalHygiene',
+        item,
+        category: 'personalHygiene', // Add explicit category
+        severity: config.severity,
+        score,
+        details: `${item.replace(/([A-Z])/g, ' $1').trim()} not detected or improperly worn`,
+        recommendations: getRecommendationsForItem(item)
+      });
+    }
+  }
+
+  return { issues, scores: Object.values(scores) };
+};
+
+const getRecommendationsForItem = (item: string): string[] => {
+  const recommendations: Record<string, string[]> = {
+    handGloves: [
+      'Wear clean disposable gloves',
+      'Change gloves after handling raw food',
+      'Replace gloves if torn or contaminated'
+    ],
+    hairCover: [
+      'Wear clean hair net or cap',
+      'Ensure all hair is fully covered',
+      'Replace hair cover daily'
+    ],
+    faceMask: [
+      'Wear face mask properly covering nose and mouth',
+      'Replace mask if wet or soiled',
+      'Never reuse disposable masks'
+    ],
+    apron: [
+      'Wear clean apron',
+      'Change apron if soiled',
+      'Use food-grade material aprons'
+    ],
+    cleanNails: [
+      'Keep nails short and clean',
+      'No nail polish while handling food',
+      'Wash hands thoroughly including nails'
+    ]
+  };
+  
+  return recommendations[item] || ['Maintain proper hygiene standards'];
+};
+
+// Helper functions for detection
+const detectCleanPlates = async (region: Region): Promise<number> => {
+  // Similar to cleanliness detection but focused on reflective surfaces
+  const grayscale = tf.mean(region.tensor, -1);
+  const variance = tf.moments(grayscale).variance;
+  const varianceVal = await variance.data();
+  grayscale.dispose();
+  variance.dispose();
+  
+  return 1 - Math.min(varianceVal[0] * 8, 1);
+};
+
+const detectHygieneItem = async (region: Region, item: string): Promise<number> => {
+  // Placeholder for hygiene item detection logic
+  const grayscale = tf.mean(region.tensor, -1);
+  const variance = tf.moments(grayscale).variance;
+  const varianceVal = await variance.data();
+  grayscale.dispose();
+  variance.dispose();
+  
+  return 1 - Math.min(varianceVal[0] * 10, 1);
 };
 
 // Update createMarkedImage function to handle missing coordinates
@@ -297,11 +544,20 @@ const createMarkedImage = async (imageData: string, issues: any[]): Promise<stri
 // Update the main analysis function
 export const analyzeImage = async (imageData: string): Promise<HygieneReport> => {
   const detection = await processImage(imageData);
-  
   const score = detection.totalScore;
-
-  // Determine status based on stricter thresholds
   const getStatus = (score: number) => score >= 70 ? "Good" : score >= 50 ? "Fair" : "Poor";
+
+  // Ensure valid coordinates for PDF circles
+  const normalizedIssues = detection.hygieneIssues.map(issue => ({
+    x: Math.max(20, Math.min(issue.x || 50, 190)), // Keep x between 20-190
+    y: Math.max(20, Math.min(issue.y || 50, 277)), // Keep y between 20-277
+    radius: Math.min(Math.max(5, // Minimum radius of 5
+      Math.sqrt(
+        (issue.width || 100) * (issue.width || 100) + 
+        (issue.height || 100) * (issue.height || 100)
+      ) / 4 // Divide by 4 to get reasonable circle size
+    ), 20) // Maximum radius of 20
+  }));
 
   return {
     score,
@@ -312,33 +568,41 @@ export const analyzeImage = async (imageData: string): Promise<HygieneReport> =>
     recommendations: generateRecommendations(detection.hygieneIssues),
     detectedIssues: detection.violations.map(v => v.issue),
     markedImageData: detection.markedImageData,
-    hygieneIssues: detection.hygieneIssues.map(issue => ({
-      x: issue.x,
-      y: issue.y,
-      radius: Math.sqrt(issue.width * issue.width + issue.height * issue.height) / 2
-    })),
+    hygieneIssues: normalizedIssues,
     workstation: getStatus(score),
     utensils: getStatus(score),
     healthRisks: [...detection.healthRisks.foodContamination.diseases, ...detection.healthRisks.poorHygiene.diseases, ...detection.healthRisks.environmentalHazards.diseases],
     hygieneCheckList: {
       personalHygiene: detection.hygieneIssues
-        .filter(issue => issue.category === 'personalHygiene')
+        .filter(issue => issue.type === 'personalHygiene')
         .map(issue => ({
-          item: issue.class,
-          status: issue.checks?.[0]?.status || "Check Required",
-          risk: issue.checks?.[0]?.risk || "Medium",
-          recommendation: issue.recommendations?.[0] || "Implement proper hygiene measures"
+          item: issue.item,
+          status: issue.score >= HYGIENE_CATEGORIES.personalHygiene[issue.item]?.threshold
+            ? "Compliant"
+            : "Action Required",
+          risk: issue.severity,
+          recommendation: issue.recommendations[0]
         })),
       foodSafety: detection.hygieneIssues
-        .filter(issue => issue.category === 'foodSafetyHandling')
+        .filter(issue => issue.type === 'foodSafety')
         .map(issue => ({
-          item: issue.class,
-          status: issue.checks?.[0]?.status || "Check Required",
-          risk: issue.checks?.[0]?.risk || "Medium",
-          recommendation: issue.recommendations?.[0] || "Implement proper food safety measures"
+          item: issue.item,
+          status: issue.score >= HYGIENE_CATEGORIES.foodSafetyHandling[issue.item]?.threshold
+            ? "Compliant"
+            : "Action Required",
+          risk: issue.severity,
+          recommendation: issue.recommendations[0]
         })),
-      waterQuality: [],
-      equipmentCleanliness: [],
+      equipmentCleanliness: detection.hygieneIssues
+        .filter(issue => issue.type === 'utensils')
+        .map(issue => ({
+          item: issue.item,
+          status: issue.score >= HYGIENE_CATEGORIES.utensilEquipment[issue.item]?.threshold
+            ? "Compliant"
+            : "Action Required",
+          risk: issue.severity,
+          recommendation: issue.recommendations[0]
+        })),
       wasteManagement: detection.hygieneIssues
         .filter(issue => issue.category === 'wasteManagement')
         .map(issue => ({
@@ -347,22 +611,34 @@ export const analyzeImage = async (imageData: string): Promise<HygieneReport> =>
           risk: issue.checks?.[0]?.risk || "Medium",
           recommendation: issue.recommendations?.[0] || "Implement proper waste management"
         })),
-      pestControl: []
+      pestControl: [],
+      waterQuality: []
     }
   };
 };
 
 const generateRecommendations = (issues: any[]): string[] => {
-  return issues.map(issue => {
+  const recommendations = new Set<string>();
+  
+  issues.forEach(issue => {
+    if (issue.recommendations) {
+      issue.recommendations.forEach((rec: string) => recommendations.add(rec));
+    }
+    
     switch (issue.type) {
+      case 'ppe':
+        recommendations.add(`Ensure proper use of ${issue.item}`);
+        break;
+      case 'foodSafety':
+        recommendations.add(`Address ${issue.item} immediately`);
+        break;
       case 'cleanliness':
-        return `Improve cleanliness in ${issue.area} area`;
-      case 'food_safety':
-        return 'Ensure proper food coverage and handling';
-      default:
-        return 'Address identified hygiene concerns';
+        recommendations.add(`Clean ${issue.area} area thoroughly`);
+        break;
     }
   });
+
+  return Array.from(recommendations);
 };
 
 const getStrictVerdict = (score: number, hasAutoFailViolations: boolean): string => {
@@ -383,3 +659,113 @@ const calculateCategoryScore = (category: Record<string, CategoryItem>): { issue
   const issues = Object.values(category).filter(item => item.score > 0).length;
   return { issues };
 };
+const analyzeUtensils = async (region: Region) => {
+  const issues = [];
+  const scores = [];
+
+  for (const [item, config] of Object.entries(HYGIENE_CATEGORIES.utensilEquipment)) {
+    const score = await detectHygieneItem(region, item);
+    scores.push(score * config.weight);
+
+    if (score < config.threshold) {
+      issues.push({
+        type: 'utensils',
+        item,
+        severity: config.severity,
+        score,
+        details: `${item.replace(/([A-Z])/g, ' $1').trim()} not properly maintained`,
+        recommendations: ['Clean and sanitize utensils regularly', 'Replace damaged equipment', 'Store utensils properly']
+      });
+    }
+  }
+
+  return { issues, scores };
+};
+
+const analyzeEnvironment = async (region: Region) => {
+  const issues = [];
+  const scores = [];
+
+  for (const [item, config] of Object.entries(HYGIENE_CATEGORIES.stallEnvironment)) {
+    const score = await detectHygieneItem(region, item);
+    scores.push(score * config.weight);
+
+    if (score < config.threshold) {
+      issues.push({
+        type: 'environment',
+        item,
+        severity: config.severity,
+        score,
+        details: `${item.replace(/([A-Z])/g, ' $1').trim()} needs improvement`,
+        recommendations: ['Maintain clean work environment', 'Implement proper waste disposal', 'Ensure adequate ventilation']
+      });
+    }
+  }
+
+  return { issues, scores };
+};
+const detectHandRegions = async (tensor: tf.Tensor3D): Promise<Array<[number, number, number, number]>> => {
+  const [height, width] = tensor.shape;
+  
+  // Split image into a grid for analysis
+  const gridSize = 4;
+  const regions: Array<[number, number, number, number]> = [];
+  
+  // Look for skin-colored regions in lower half of image
+  const lowerHalf = tensor.slice([Math.floor(height/2), 0, 0], [Math.floor(height/2), width, 3]);
+  
+  try {
+    // Convert to RGB values we can analyze
+    const rgbData = await lowerHalf.array();
+    
+    const cellHeight = Math.floor(height / (2 * gridSize));
+    const cellWidth = Math.floor(width / gridSize);
+    
+    // Scan grid cells for skin-colored regions
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
+        const startY = i * cellHeight;
+        const startX = j * cellWidth;
+        
+        // Check if this cell contains skin-like colors
+        let skinPixelCount = 0;
+        const totalPixels = cellHeight * cellWidth;
+        
+        for (let y = startY; y < startY + cellHeight; y++) {
+          for (let x = startX; x < startX + cellWidth; x++) {
+            if (y < rgbData.length && x < rgbData[y].length) {
+              const [r, g, b] = rgbData[y][x];
+              if (isSkinColor(r, g, b)) {
+                skinPixelCount++;
+              }
+            }
+          }
+        }
+        
+        // If enough skin-colored pixels found, mark as potential hand region
+        if (skinPixelCount / totalPixels > 0.3) {
+          regions.push([
+            startY + Math.floor(height/2), // Adjust Y coordinate back to full image
+            startX,
+            cellHeight,
+            cellWidth
+          ]);
+        }
+      }
+    }
+  } finally {
+    lowerHalf.dispose();
+  }
+  
+  return regions;
+};
+
+function isSkinColor(r: number, g: number, b: number): boolean {
+  // Simple skin tone detection based on RGB ratios
+  return (r > 95 && g > 40 && b > 20) &&
+         (Math.max(r, g, b) - Math.min(r, g, b) > 15) &&
+         (Math.abs(r - g) > 15) &&
+         (r > g) &&
+         (r > b);
+}
+
