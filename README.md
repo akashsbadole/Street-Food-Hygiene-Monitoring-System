@@ -1,73 +1,66 @@
-# Welcome to your Lovable project
+The error indicates that the Prisma command you are trying to run is not supported for the MongoDB provider. Prisma has limited support for MongoDB, and certain commands like `prisma migrate` are not available for MongoDB.
 
-## Project info
+---
 
-**URL**: https://lovable.dev/projects/f558470a-fb92-4c55-b10e-ae40fbd65666
+### Steps to Fix:
 
-## How can I edit this code?
+1. **Understand Prisma's MongoDB Limitations**:
 
-There are several ways of editing your application.
+   - Prisma does not support migrations (`prisma migrate`) for MongoDB.
+   - You need to manually manage your MongoDB schema.
 
-**Use Lovable**
+2. **Generate Prisma Client Without Migrations**:
+   Use the following command to generate the Prisma client:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/f558470a-fb92-4c55-b10e-ae40fbd65666) and start prompting.
+   ```bash
+   npx prisma generate
+   ```
 
-Changes made via Lovable will be committed automatically to this repo.
+3. **Manually Create the Collection in MongoDB**:
+   Since Prisma cannot create collections for MongoDB, you need to manually create the `AnalysisData` collection in your database.
 
-**Use your preferred IDE**
+   #### Steps to Create the Collection:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+   - Open your MongoDB client (e.g., MongoDB Compass or CLI).
+   - Connect to your database (`streetFoodSafety`).
+   - Create a collection named `AnalysisData`.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+   Example MongoDB CLI command:
 
-Follow these steps:
+   ```bash
+   use streetFoodSafety
+   db.createCollection("AnalysisData")
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+4. **Update Your Workflow**:
+   - Skip running `prisma migrate` for MongoDB.
+   - Use `prisma generate` to regenerate the Prisma client whenever you update the `schema.prisma` file.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+---
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Updated Workflow for MongoDB with Prisma:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+#### d:\projects\streetfood-safety-sentinel\backend\package.json
+
+Update the `scripts` section to remove the `prisma:migrate` command.
+
+```json
+{
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only index.ts",
+    "prisma:generate": "prisma generate"
+  }
+}
 ```
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Summary:
 
-**Use GitHub Codespaces**
+- **Prisma Migrations**: Not supported for MongoDB. Use manual schema management.
+- **Generate Prisma Client**: Use `npx prisma generate` to regenerate the client.
+- **Manual Collection Creation**: Create the `AnalysisData` collection manually in MongoDB.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+This ensures that you can continue using Prisma with MongoDB without running into unsupported commands.
 
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/f558470a-fb92-4c55-b10e-ae40fbd65666) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes it is!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Made changes.

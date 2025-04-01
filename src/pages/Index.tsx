@@ -36,11 +36,31 @@ const Index = () => {
       const result = await analyzeImage(uploadedImage);
       setReport(result);
       setActiveTab("report");
+
+      // Save analysis data to the backend API
+      const timestamp = new Date().toISOString();
+      const response = await fetch("http://localhost:8081/api/saveAnalysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageUrl: uploadedImage,
+          analysisResult: result,
+          timestamp,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save analysis data");
+      }
+
       toast({
         title: "Analysis Complete",
         description: "Your hygiene report is ready for review.",
       });
     } catch (error) {
+      console.error("Error during analysis:", error); // Log the error for debugging
       toast({
         title: "Analysis Failed",
         description: "There was an error analyzing the image.",

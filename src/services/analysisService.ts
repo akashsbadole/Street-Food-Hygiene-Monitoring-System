@@ -27,77 +27,109 @@ const loadModel = async () => {
 
 // Process image with TensorFlow.js and mark detected issues on the image
 const processImageWithTensorFlow = async (imageData: string): Promise<any> => {
-  await loadModel();
-  
-  // Simulated hygiene detection results
-  // In a real application, this would process the image with the loaded model
-  
-  // Simulate processing delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  // Generate detection results with probabilities
-  // These would be the actual detection results from your model
-  const detectionResults = {
-    noGloves: Math.random() > 0.5,
-    noHairCover: Math.random() > 0.5,
-    uncleanSurface: Math.random() > 0.5,
-    improperFoodHandling: Math.random() > 0.4,
-    uncleanUtensils: Math.random() > 0.6,
-    openFood: Math.random() > 0.5,
-    noMask: Math.random() > 0.5,
-    dirtyClothing: Math.random() > 0.5,
-    exposedTrash: Math.random() > 0.5,
-    dirtyUtensils: Math.random() > 0.5,
-    improperStorage: Math.random() > 0.5,
-    visiblePests: Math.random() > 0.5,
-    handDirt: Math.random() > 0.5, // New: Detect visible dirt on hands
-    expiredFood: Math.random() > 0.5, // New: Detect expired or stale food
-    spillage: Math.random() > 0.5, // New: Detect liquid spills or garbage on the floor
-    airQualityPoor: Math.random() > 0.5, // New: Simulate poor air quality detection
-  };
+  try {
+    await loadModel();
+    
+    // Simulated hygiene detection results
+    // In a real application, this would process the image with the loaded model
+    
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Generate detection results with probabilities
+    // These would be the actual detection results from your model
+    const detectionResults = {
+      noGloves: Math.random() > 0.5,
+      noHairCover: Math.random() > 0.5,
+      uncleanSurface: Math.random() > 0.5,
+      improperFoodHandling: Math.random() > 0.4,
+      uncleanUtensils: Math.random() > 0.6,
+      openFood: Math.random() > 0.5,
+      noMask: Math.random() > 0.5,
+      dirtyClothing: Math.random() > 0.5,
+      exposedTrash: Math.random() > 0.5,
+      dirtyUtensils: Math.random() > 0.5,
+      improperStorage: Math.random() > 0.5,
+      visiblePests: Math.random() > 0.5,
+      handDirt: Math.random() > 0.5, // New: Detect visible dirt on hands
+      expiredFood: Math.random() > 0.5, // New: Detect expired or stale food
+      spillage: Math.random() > 0.5, // New: Detect liquid spills or garbage on the floor
+      airQualityPoor: Math.random() > 0.5, // New: Simulate poor air quality detection
+      // New Parameters
+      improperHandWashing: Math.random() > 0.5, // Detect improper hand washing
+      faceTouching: Math.random() > 0.5, // Detect frequent face touching
+      uniformStains: Math.random() > 0.5, // Detect stains on uniforms
+      longDirtyNails: Math.random() > 0.5, // Detect long or dirty nails
+      crossContamination: Math.random() > 0.5, // Detect cross-contamination risks
+      improperTemperature: Math.random() > 0.5, // Detect improper food storage temperature
+      ingredientSpoilage: Math.random() > 0.5, // Detect spoiled ingredients
+      missedCleaning: Math.random() > 0.5, // Detect missed cleaning schedules
+      unsterilizedTools: Math.random() > 0.5, // Detect unsterilized tools
+      highBacterialLoad: Math.random() > 0.5, // Estimate bacterial load on surfaces
+      poorWasteManagement: Math.random() > 0.5, // Detect poor waste management
+      poorVentilation: Math.random() > 0.5, // Detect poor air quality or ventilation
+      pestControlBreaches: Math.random() > 0.5, // Detect pest control breaches
+    };
 
-  // Generate detection points for each issue (in a real app, these would come from the model)
-  // For our simulation, we'll create random points
-  const detectionPoints = {};
-  const imageWidth = 800;  // Assumed width for demonstration
-  const imageHeight = 600; // Assumed height for demonstration
-  
-  Object.entries(detectionResults).forEach(([issue, detected]) => {
-    if (detected) {
-      detectionPoints[issue] = {
-        x: Math.floor(Math.random() * (imageWidth - 100)) + 50,
-        y: Math.floor(Math.random() * (imageHeight - 100)) + 50,
-        radius: Math.floor(Math.random() * 30) + 20,
-      };
-    }
-  });
-  
-  // Create a marked image with dotted circles
-  const markedImageData = await createMarkedImage(imageData, detectionPoints, detectionResults);
-  
-  return {
-    detectionResults,
-    detectionConfidence: {
-      noGloves: Math.random() * 0.5 + 0.5,
-      noHairCover: Math.random() * 0.5 + 0.5,
-      uncleanSurface: Math.random() * 0.5 + 0.5,
-      improperFoodHandling: Math.random() * 0.5 + 0.5,
-      uncleanUtensils: Math.random() * 0.5 + 0.5,
-      openFood: Math.random() * 0.5 + 0.5,
-      noMask: Math.random() * 0.5 + 0.5,
-      dirtyClothing: Math.random() * 0.5 + 0.5,
-      exposedTrash: Math.random() * 0.5 + 0.5,
-      dirtyUtensils: Math.random() * 0.5 + 0.5,
-      improperStorage: Math.random() * 0.5 + 0.5,
-      visiblePests: Math.random() * 0.5 + 0.5,
-      handDirt: Math.random() * 0.5 + 0.5, // New parameter
-      expiredFood: Math.random() * 0.5 + 0.5, // New parameter
-      spillage: Math.random() * 0.5 + 0.5, // New parameter
-      airQualityPoor: Math.random() * 0.5 + 0.5, // New parameter
-    },
-    markedImageData,
-    hygieneIssues: Object.values(detectionPoints),
-  };
+    // Generate detection points for each issue (in a real app, these would come from the model)
+    // For our simulation, we'll create random points
+    const detectionPoints = {};
+    const imageWidth = 800;  // Assumed width for demonstration
+    const imageHeight = 600; // Assumed height for demonstration
+    
+    Object.entries(detectionResults).forEach(([issue, detected]) => {
+      if (detected) {
+        detectionPoints[issue] = {
+          x: Math.floor(Math.random() * (imageWidth - 100)) + 50,
+          y: Math.floor(Math.random() * (imageHeight - 100)) + 50,
+          radius: Math.floor(Math.random() * 30) + 20,
+        };
+      }
+    });
+    
+    // Create a marked image with dotted circles
+    const markedImageData = await createMarkedImage(imageData, detectionPoints, detectionResults);
+    
+    return {
+      detectionResults,
+      detectionConfidence: {
+        noGloves: Math.random() * 0.5 + 0.5,
+        noHairCover: Math.random() * 0.5 + 0.5,
+        uncleanSurface: Math.random() * 0.5 + 0.5,
+        improperFoodHandling: Math.random() * 0.5 + 0.5,
+        uncleanUtensils: Math.random() * 0.5 + 0.5,
+        openFood: Math.random() * 0.5 + 0.5,
+        noMask: Math.random() * 0.5 + 0.5,
+        dirtyClothing: Math.random() * 0.5 + 0.5,
+        exposedTrash: Math.random() * 0.5 + 0.5,
+        dirtyUtensils: Math.random() * 0.5 + 0.5,
+        improperStorage: Math.random() * 0.5 + 0.5,
+        visiblePests: Math.random() * 0.5 + 0.5,
+        handDirt: Math.random() * 0.5 + 0.5, // New parameter
+        expiredFood: Math.random() * 0.5 + 0.5, // New parameter
+        spillage: Math.random() * 0.5 + 0.5, // New parameter
+        airQualityPoor: Math.random() * 0.5 + 0.5, // New parameter
+        improperHandWashing: Math.random() * 0.5 + 0.5, // New parameter
+        faceTouching: Math.random() * 0.5 + 0.5, // New parameter
+        uniformStains: Math.random() * 0.5 + 0.5, // New parameter
+        longDirtyNails: Math.random() * 0.5 + 0.5, // New parameter
+        crossContamination: Math.random() * 0.5 + 0.5, // New parameter
+        improperTemperature: Math.random() * 0.5 + 0.5, // New parameter
+        ingredientSpoilage: Math.random() * 0.5 + 0.5, // New parameter
+        missedCleaning: Math.random() * 0.5 + 0.5, // New parameter
+        unsterilizedTools: Math.random() * 0.5 + 0.5, // New parameter
+        highBacterialLoad: Math.random() * 0.5 + 0.5, // New parameter
+        poorWasteManagement: Math.random() * 0.5 + 0.5, // New parameter
+        poorVentilation: Math.random() * 0.5 + 0.5, // New parameter
+        pestControlBreaches: Math.random() * 0.5 + 0.5, // New parameter
+      },
+      markedImageData,
+      hygieneIssues: Object.values(detectionPoints),
+    };
+  } catch (error) {
+    console.error("Error in processImageWithTensorFlow:", error); // Log the error
+    throw new Error("Failed to process image with TensorFlow.");
+  }
 };
 
 // Create an image with dotted circles around detected issues
@@ -219,6 +251,15 @@ export const analyzeImage = async (imageData: string): Promise<HygieneReport> =>
   const workstation = detection.detectionResults.uncleanSurface || detection.detectionResults.exposedTrash || detection.detectionResults.spillage ? "Poor" : "Good";
   const utensils = detection.detectionResults.uncleanUtensils || detection.detectionResults.dirtyUtensils ? "Poor" : "Good";
 
+  // Calculate score based on the number of "Poor" indicators
+  const poorIndicators = [
+    cleanliness,
+    foodHandling,
+    personalHygiene,
+    workstation,
+    utensils,
+  ].filter((status) => status === "Poor").length;
+
   const detectedIssues = [];
   if (detection.detectionResults.noGloves) detectedIssues.push("No gloves worn when handling food");
   if (detection.detectionResults.noHairCover) detectedIssues.push("No hair cover/cap worn");
@@ -236,6 +277,19 @@ export const analyzeImage = async (imageData: string): Promise<HygieneReport> =>
   if (detection.detectionResults.expiredFood) detectedIssues.push("Expired or stale food detected");
   if (detection.detectionResults.spillage) detectedIssues.push("Spillage or unclean floors detected");
   if (detection.detectionResults.airQualityPoor) detectedIssues.push("Poor air quality detected near the vendor");
+  if (detection.detectionResults.improperHandWashing) detectedIssues.push("Improper hand washing detected");
+  if (detection.detectionResults.faceTouching) detectedIssues.push("Frequent face touching detected");
+  if (detection.detectionResults.uniformStains) detectedIssues.push("Stains detected on uniforms");
+  if (detection.detectionResults.longDirtyNails) detectedIssues.push("Long or dirty nails detected");
+  if (detection.detectionResults.crossContamination) detectedIssues.push("Cross-contamination risks detected");
+  if (detection.detectionResults.improperTemperature) detectedIssues.push("Improper food storage temperature detected");
+  if (detection.detectionResults.ingredientSpoilage) detectedIssues.push("Spoiled or expired ingredients detected");
+  if (detection.detectionResults.missedCleaning) detectedIssues.push("Missed cleaning schedules detected");
+  if (detection.detectionResults.unsterilizedTools) detectedIssues.push("Unsterilized tools detected");
+  if (detection.detectionResults.highBacterialLoad) detectedIssues.push("High bacterial load detected on surfaces");
+  if (detection.detectionResults.poorWasteManagement) detectedIssues.push("Poor waste management practices detected");
+  if (detection.detectionResults.poorVentilation) detectedIssues.push("Poor ventilation or air quality detected");
+  if (detection.detectionResults.pestControlBreaches) detectedIssues.push("Pest control breaches detected");
 
   const score = Math.max(0, 100 - detectedIssues.length * 15);
 
@@ -262,6 +316,19 @@ export const analyzeImage = async (imageData: string): Promise<HygieneReport> =>
     ...(detection.detectionResults.expiredFood ? ["Dispose of expired or stale food immediately."] : []),
     ...(detection.detectionResults.spillage ? ["Clean up spills and maintain clean floors."] : []),
     ...(detection.detectionResults.airQualityPoor ? ["Improve air quality by avoiding smoke or harmful gases near the stall."] : []),
+    ...(detection.detectionResults.improperHandWashing ? ["Ensure proper hand washing techniques are followed."] : []),
+    ...(detection.detectionResults.faceTouching ? ["Avoid touching the face during food preparation."] : []),
+    ...(detection.detectionResults.uniformStains ? ["Ensure uniforms are clean and free of stains."] : []),
+    ...(detection.detectionResults.longDirtyNails ? ["Keep nails trimmed and clean to maintain hygiene."] : []),
+    ...(detection.detectionResults.crossContamination ? ["Separate raw and cooked food to prevent cross-contamination."] : []),
+    ...(detection.detectionResults.improperTemperature ? ["Maintain proper food storage temperatures."] : []),
+    ...(detection.detectionResults.ingredientSpoilage ? ["Inspect ingredients for freshness before use."] : []),
+    ...(detection.detectionResults.missedCleaning ? ["Follow the cleaning schedule to ensure sanitation."] : []),
+    ...(detection.detectionResults.unsterilizedTools ? ["Sterilize tools and equipment before use."] : []),
+    ...(detection.detectionResults.highBacterialLoad ? ["Sanitize high-touch surfaces to reduce bacterial load."] : []),
+    ...(detection.detectionResults.poorWasteManagement ? ["Implement proper waste management practices."] : []),
+    ...(detection.detectionResults.poorVentilation ? ["Improve ventilation to ensure air quality."] : []),
+    ...(detection.detectionResults.pestControlBreaches ? ["Seal entry points and implement pest control measures."] : []),
   ];
 
   return {

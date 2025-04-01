@@ -193,14 +193,16 @@ const HygieneReportCard = ({
       doc.text(`${index + 1}. ${rec}`, 10, issuesHeight + 10 + index * 10);
     });
 
+    // Add a second page for images
+    doc.addPage();
+
     // Add uploaded image
     if (originalImage) {
-      const imgHeight = issuesHeight + 30 + report.recommendations.length * 10;
       const img = new Image();
       img.src = originalImage;
       await new Promise((resolve) => {
         img.onload = () => {
-          doc.addImage(img, "JPEG", 10, imgHeight, 90, 60);
+          doc.addImage(img, "JPEG", 10, 10, 190, 100);
           resolve(null);
         };
         img.onerror = () => {
@@ -208,18 +210,27 @@ const HygieneReportCard = ({
           resolve(null);
         };
       });
-      doc.text("Uploaded Image", 10, imgHeight + 65);
+      doc.text("Uploaded Image", 10, 115);
+
+      // Draw hygiene issue indicators directly on the PDF
+      hygieneIssues.forEach((issue) => {
+        const x = 10 + (issue.x / 100) * 190; // Scale x to fit the image width
+        const y = 10 + (issue.y / 100) * 100; // Scale y to fit the image height
+        const radius = (issue.radius / 100) * 190; // Scale radius to fit the image width
+
+        doc.setDrawColor(255, 0, 0); // Red color for indicators
+        doc.setLineWidth(0.5);
+        doc.circle(x, y, radius, "S"); // Draw circle
+      });
     }
 
-    // Add marked image
+    // Add marked image with hygiene issue indicators
     if (report.markedImageData) {
-      const markedImgHeight =
-        issuesHeight + 100 + report.recommendations.length * 10;
       const markedImg = new Image();
       markedImg.src = report.markedImageData;
       await new Promise((resolve) => {
         markedImg.onload = () => {
-          doc.addImage(markedImg, "JPEG", 110, markedImgHeight - 70, 90, 60);
+          doc.addImage(markedImg, "JPEG", 10, 120, 190, 100);
           resolve(null);
         };
         markedImg.onerror = () => {
@@ -227,7 +238,7 @@ const HygieneReportCard = ({
           resolve(null);
         };
       });
-      doc.text("Marked Image", 110, markedImgHeight - 5);
+      doc.text("Marked Image with Hygiene Issues", 10, 225);
     }
 
     // Generate filename with date and time

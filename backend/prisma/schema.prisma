@@ -1,0 +1,15 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL") // Use the SQLite connection string
+}
+
+model AnalysisData {
+  id             Int      @id @default(autoincrement())
+  imageUrl       String
+  analysisResult String   // Change from Json to String
+  timestamp      DateTime
+}

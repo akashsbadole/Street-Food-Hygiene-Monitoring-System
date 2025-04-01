@@ -1,0 +1,23 @@
+{
+  "name": "streetfood-safety-backend",
+  "version": "1.0.0",
+  "description": "Backend for Street Food Safety Sentinel using Prisma and MongoDB",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only server.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@prisma/client": "^4.7.1",
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "mongodb": "^5.6.0"
+  },
+  "devDependencies": {
+    "prisma": "^4.7.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.2.2"
+  }
+}
