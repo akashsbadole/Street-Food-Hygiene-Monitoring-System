@@ -8,17 +8,26 @@ import ImageUploader from "@/components/ImageUploader";
 import HygieneReportCard, { HygieneReport } from "@/components/HygieneReport";
 import { analyzeImage } from "@/services/analysisService";
 import { Loader2 } from "lucide-react";
+import { generateImageUrl } from "@/lib/utils";
 
 const Index = () => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [report, setReport] = useState<HygieneReport | null>(null);
   const [activeTab, setActiveTab] = useState("upload");
+  const [imageUrl, setImageUrl] = useState<string>("");
   const { toast } = useToast();
 
   const handleImageUploaded = (imageData: string) => {
     setUploadedImage(imageData);
     setReport(null);
+
+    // Generate unique URL for the image
+    const url = generateImageUrl(imageData);
+    setImageUrl(url);
+
+    // Update URL without page reload
+    window.history.pushState({}, "", url);
   };
 
   const handleAnalyzeImage = async () => {
@@ -37,8 +46,9 @@ const Index = () => {
       setReport(result);
       setActiveTab("report");
 
-      // Save analysis data to the backend API
       const timestamp = new Date().toISOString();
+      const path = imageUrl || `/images/${new Date().getTime()}`;
+
       const response = await fetch("http://localhost:8081/api/saveAnalysis", {
         method: "POST",
         headers: {
@@ -48,11 +58,13 @@ const Index = () => {
           imageUrl: uploadedImage,
           analysisResult: result,
           timestamp,
+          path,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to save analysis data");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to save analysis data");
       }
 
       toast({
@@ -60,10 +72,13 @@ const Index = () => {
         description: "Your hygiene report is ready for review.",
       });
     } catch (error) {
-      console.error("Error during analysis:", error); // Log the error for debugging
+      console.error("Error during analysis:", error);
       toast({
         title: "Analysis Failed",
-        description: "There was an error analyzing the image.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "There was an error analyzing the image.",
         variant: "destructive",
       });
     } finally {

@@ -26,16 +26,39 @@ const initializeDatabase = async () => {
 // API Routes
 app.post("/api/saveAnalysis", async (req, res) => {
   try {
-    const { imageUrl, analysisResult, timestamp } = req.body;
+    const { imageUrl, analysisResult, timestamp, path } = req.body;
     const response = await saveAnalysisData({ 
       imageUrl, 
       analysisResult, 
-      timestamp 
+      timestamp,
+      path: path || `/images/${new Date().getTime()}` // Provide fallback path
     });
     res.status(200).json(response);
   } catch (error) {
     console.error("Error in /api/saveAnalysis:", error);
     res.status(500).json({ error: "Failed to save analysis data" });
+  }
+});
+
+// Add new endpoint to get analysis by path
+app.get("/api/getAnalysis", async (req, res) => {
+  try {
+    const { path } = req.query;
+    const analysis = await prisma.analysisData.findUnique({
+      where: { path: path as string },
+    });
+    
+    if (!analysis) {
+      return res.status(404).json({ error: "Analysis not found" });
+    }
+
+    // Parse the JSON string back to object
+    analysis.analysisResult = JSON.parse(analysis.analysisResult);
+    
+    res.status(200).json(analysis);
+  } catch (error) {
+    console.error("Error in /api/getAnalysis:", error);
+    res.status(500).json({ error: "Failed to retrieve analysis data" });
   }
 });
 

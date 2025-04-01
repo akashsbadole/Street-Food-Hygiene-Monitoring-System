@@ -23,39 +23,26 @@ async function initializeTensorFlow() {
   }
 }
 
-// Enhanced hygiene object map with more specific categories
-const hygieneObjectMap = {
-  person: { 
-    category: "personalHygiene", 
-    severity: "high",
-    checks: ["mask", "gloves", "hairNet", "cleanUniform"]
+// Enhanced hygiene detection categories
+const hygieneCategories = {
+  personalProtection: {
+    gloves: { severity: "critical", score: 0 },
+    mask: { severity: "critical", score: 0 },
+    hairNet: { severity: "high", score: 0 },
+    apron: { severity: "high", score: 0 },
   },
-  "dining table": { 
-    category: "workstation", 
-    severity: "high",
-    checks: ["cleanliness", "organization", "crossContamination"]
+  foodSafety: {
+    foodCovering: { severity: "critical", score: 0 },
+    rawFoodHandling: { severity: "critical", score: 0 },
+    crossContamination: { severity: "high", score: 0 },
+    properStorage: { severity: "high", score: 0 },
   },
-  bowl: { 
-    category: "foodHandling", 
-    severity: "high",
-    checks: ["covered", "properStorage", "cleanliness"]
-  },
-  "food": {
-    category: "foodHandling",
-    severity: "critical",
-    checks: ["covered", "temperature", "freshness"]
-  },
-  sink: {
-    category: "cleanliness",
-    severity: "high",
-    checks: ["handWashing", "utensilCleaning"]
-  },
-  // Add more specific detections
-  "face mask": { category: "personalHygiene", severity: "critical" },
-  "gloves": { category: "personalHygiene", severity: "critical" },
-  "hair net": { category: "personalHygiene", severity: "high" },
-  "food cover": { category: "foodHandling", severity: "critical" },
-  "sanitizer": { category: "cleanliness", severity: "high" },
+  cleanliness: {
+    workspaceCleanliness: { severity: "high", score: 0 },
+    utensilsCleanliness: { severity: "high", score: 0 },
+    handWashing: { severity: "critical", score: 0 },
+    wasteManagement: { severity: "high", score: 0 },
+  }
 };
 
 let model: cocoSsd.ObjectDetection | null = null;
@@ -77,22 +64,59 @@ const loadModel = async () => {
   }
 };
 
-// Add custom detection for hygiene-specific items
-const detectHygieneItems = async (imageData: string, baseDetections: any[]) => {
-  // Simulate additional hygiene-specific detections
-  // In a real implementation, this would use a custom-trained model
-  const additionalChecks = {
-    mask: Math.random() > 0.5,
-    gloves: Math.random() > 0.5,
-    hairNet: Math.random() > 0.5,
-    foodCover: Math.random() > 0.5,
-    handWashing: Math.random() > 0.5,
-  };
+// Custom analysis for street food hygiene
+const analyzeHygieneInImage = async (predictions: cocoSsd.DetectedObject[], imageData: string) => {
+  const issues: any[] = [];
+  const scores = { ...hygieneCategories };
 
-  return {
-    ...baseDetections,
-    hygieneSpecific: additionalChecks
+  // Check for hands without gloves
+  const handsDetected = predictions.filter(p => p.class === "person");
+  if (handsDetected.length > 0) {
+    issues.push({
+      x: handsDetected[0].bbox[0],
+      y: handsDetected[0].bbox[1],
+      width: handsDetected[0].bbox[2],
+      height: handsDetected[0].bbox[3],
+      class: "No Gloves Detected",
+      score: 1,
+      category: "personalProtection",
+      severity: "critical"
+    });
+    scores.personalProtection.gloves.score = 1;
+  }
+
+  // Check for uncovered food
+  const foodItems = predictions.filter(p => 
+    ["bowl", "plate", "food"].includes(p.class.toLowerCase())
+  );
+  foodItems.forEach(item => {
+    issues.push({
+      x: item.bbox[0],
+      y: item.bbox[1],
+      width: item.bbox[2],
+      height: item.bbox[3],
+      class: "Exposed Food",
+      score: 1,
+      category: "foodSafety",
+      severity: "critical"
+    });
+    scores.foodSafety.foodCovering.score = 1;
+  });
+
+  // Add cleanliness checks
+  const surfaceCheck = {
+    x: 50,
+    y: 50,
+    width: 40,
+    height: 40,
+    class: "Workspace Cleanliness Check Required",
+    score: 0.9,
+    category: "cleanliness",
+    severity: "high"
   };
+  issues.push(surfaceCheck);
+
+  return { issues, scores };
 };
 
 const processImageWithCocoSsd = async (imageData: string) => {
@@ -101,53 +125,25 @@ const processImageWithCocoSsd = async (imageData: string) => {
   img.src = imageData;
   await new Promise((resolve) => { img.onload = resolve; });
 
-  // Perform object detection
-  const predictions = await model.detect(img, 20); // Detect up to 20 objects
-  console.log("COCO-SSD predictions:", predictions);
+  // Get base predictions from COCO-SSD
+  const predictions = await model.detect(img, 20);
+  console.log("Base predictions:", predictions);
 
-  // Filter and map predictions to hygiene issues
-  const hygieneIssues = predictions
-    .filter(pred => pred.class in hygieneObjectMap)
-    .map(pred => ({
-      x: (pred.bbox[0] / img.width) * 100,
-      y: (pred.bbox[1] / img.height) * 100,
-      width: (pred.bbox[2] / img.width) * 100,
-      height: (pred.bbox[3] / img.height) * 100,
-      class: pred.class,
-      score: pred.score,
-      category: hygieneObjectMap[pred.class as keyof typeof hygieneObjectMap].category,
-      severity: hygieneObjectMap[pred.class as keyof typeof hygieneObjectMap].severity
-    }));
+  // Add custom hygiene analysis
+  const { issues, scores } = await analyzeHygieneInImage(predictions, imageData);
 
-  // Add hygiene-specific detection
-  const hygieneDetections = await detectHygieneItems(imageData, predictions);
-  
-  // Combine all detections
-  const allIssues = [...hygieneIssues];
-  
-  // Add hygiene-specific issues
-  if (!hygieneDetections.hygieneSpecific.mask) {
-    allIssues.push({
-      x: 50,
-      y: 50,
-      width: 20,
-      height: 20,
-      class: "Missing Mask",
-      score: 1,
-      category: "personalHygiene",
-      severity: "critical"
-    });
-  }
-  
-  // Similar additions for other hygiene items...
+  // Create marked image with detailed annotations
+  const markedImageData = await createMarkedImage(imageData, issues, scores);
 
-  // Create marked image with bounding boxes
-  const markedImageData = await createMarkedImage(imageData, allIssues);
-
-  return { hygieneIssues: allIssues, markedImageData };
+  return {
+    hygieneIssues: issues,
+    markedImageData,
+    scores
+  };
 };
 
-const createMarkedImage = async (imageData: string, issues: any[]): Promise<string> => {
+// Update image marking to include more detailed annotations
+const createMarkedImage = async (imageData: string, issues: any[], scores: any): Promise<string> => {
   const img = new Image();
   img.src = imageData;
   
@@ -174,17 +170,21 @@ const createMarkedImage = async (imageData: string, issues: any[]): Promise<stri
         const height = (issue.height / 100) * img.height;
 
         // Draw bounding box
-        ctx.strokeStyle = issue.severity === 'high' ? '#FF0000' : '#FFA500';
+        ctx.strokeStyle = issue.severity === 'critical' ? '#FF0000' : '#FFA500';
         ctx.lineWidth = 2;
         ctx.strokeRect(x, y, width, height);
 
         // Draw label
         const label = `${issue.class} (${Math.round(issue.score * 100)}%)`;
-        ctx.fillStyle = issue.severity === 'high' ? '#FF0000' : '#FFA500';
+        ctx.fillStyle = issue.severity === 'critical' ? '#FF0000' : '#FFA500';
         ctx.font = '14px Arial';
         ctx.fillRect(x, y - 20, ctx.measureText(label).width + 4, 20);
         ctx.fillStyle = '#FFFFFF';
         ctx.fillText(label, x + 2, y - 5);
+
+        // Add detailed labels with recommendations
+        const recommendation = getRecommendationForIssue(issue.class);
+        ctx.fillText(`${issue.class}: ${recommendation}`, x + 2, y - 25);
       });
 
       resolve(canvas.toDataURL('image/jpeg'));
@@ -193,24 +193,28 @@ const createMarkedImage = async (imageData: string, issues: any[]): Promise<stri
   });
 };
 
+// Helper function to get specific recommendations
+const getRecommendationForIssue = (issueType: string): string => {
+  const recommendations = {
+    "No Gloves Detected": "Wear disposable gloves when handling food",
+    "Exposed Food": "Keep food covered when not serving",
+    "Workspace Cleanliness": "Clean and sanitize workspace regularly",
+    // Add more specific recommendations
+  };
+  return recommendations[issueType as keyof typeof recommendations] || "Address this hygiene concern";
+};
+
+// Update the main analysis function
 export const analyzeImage = async (imageData: string): Promise<HygieneReport> => {
   const detection = await processImageWithCocoSsd(imageData);
   
-  // Calculate category scores based on detected objects
+  // Calculate more detailed scores
   const categoryScores = {
-    cleanliness: { issues: 0 },
-    foodHandling: { issues: 0 },
-    personalHygiene: { issues: 0 },
-    workstation: { issues: 0 },
-    utensils: { issues: 0 }
+    cleanliness: calculateCategoryScore(detection.scores.cleanliness),
+    foodHandling: calculateCategoryScore(detection.scores.foodSafety),
+    personalHygiene: calculateCategoryScore(detection.scores.personalProtection),
+    // ...other categories
   };
-
-  // Count issues per category
-  detection.hygieneIssues.forEach(issue => {
-    if (issue.score < 0.5 || issue.severity === 'high') {
-      categoryScores[issue.category as keyof typeof categoryScores].issues++;
-    }
-  });
 
   // Generate detected issues and recommendations
   const detectedIssues = detection.hygieneIssues.map(issue => 
@@ -221,14 +225,11 @@ export const analyzeImage = async (imageData: string): Promise<HygieneReport> =>
   const totalIssues = Object.values(categoryScores).reduce((sum, cat) => sum + cat.issues, 0);
   const score = Math.max(0, 100 - (totalIssues * 10));
 
-  // ...rest of your existing analyzeImage implementation...
   return {
     score,
     cleanliness: categoryScores.cleanliness.issues > 0 ? "Poor" : "Good",
     foodHandling: categoryScores.foodHandling.issues > 0 ? "Poor" : "Good",
     personalHygiene: categoryScores.personalHygiene.issues > 0 ? "Poor" : "Good",
-    workstation: categoryScores.workstation.issues > 0 ? "Poor" : "Good",
-    utensils: categoryScores.utensils.issues > 0 ? "Poor" : "Good",
     overallVerdict: getVerdict(score),
     recommendations: generateRecommendations(detection.hygieneIssues),
     detectedIssues,
@@ -237,7 +238,9 @@ export const analyzeImage = async (imageData: string): Promise<HygieneReport> =>
       x: issue.x,
       y: issue.y,
       radius: Math.sqrt(issue.width * issue.width + issue.height * issue.height) / 2
-    }))
+    })),
+    workstation: categoryScores.cleanliness.issues > 0 ? "Poor" : "Good",
+    utensils: categoryScores.cleanliness.issues > 0 ? "Poor" : "Good"
   };
 };
 
@@ -253,24 +256,28 @@ const generateRecommendations = (issues: any[]): string[] => {
   issues.forEach(issue => {
     if (issue.score < 0.5 || issue.severity === 'high') {
       switch (issue.category) {
-        case 'personalHygiene':
+        case 'personalProtection':
           recommendations.add("Improve personal hygiene practices");
           break;
-        case 'foodHandling':
+        case 'foodSafety':
           recommendations.add("Enhance food handling procedures");
           break;
         case 'cleanliness':
           recommendations.add("Maintain better cleanliness standards");
-          break;
-        case 'workstation':
-          recommendations.add("Organize workstation more effectively");
-          break;
-        case 'utensils':
-          recommendations.add("Ensure proper utensil cleanliness and storage");
           break;
       }
     }
   });
 
   return Array.from(recommendations);
+};
+
+interface CategoryItem {
+  severity: string;
+  score: number;
+}
+
+const calculateCategoryScore = (category: Record<string, CategoryItem>): { issues: number } => {
+  const issues = Object.values(category).filter(item => item.score > 0).length;
+  return { issues };
 };

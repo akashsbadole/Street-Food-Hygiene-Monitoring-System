@@ -18,6 +18,11 @@ import {
   Info,
   AlertOctagon,
   ImageIcon,
+  Share2,
+  MessageSquare,
+  Facebook,
+  Twitter,
+  Linkedin,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -319,6 +324,79 @@ const HygieneReportCard = ({
     doc.save(filename);
   };
 
+  const handleShareWhatsApp = async () => {
+    const text = `StreetFood Safety Report\n
+Score: ${report.score}/100\n
+Verdict: ${report.overallVerdict}\n
+Key Issues: ${report.detectedIssues?.join(", ")}\n
+Analyzed by: Kash Bado`;
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(whatsappUrl, "_blank");
+  };
+
+  const handleShareSocial = (platform: string) => {
+    const url = window.location.href;
+    const text = `Check out this Street Food Hygiene Report - Score: ${report.score}/100`;
+
+    const shareUrls = {
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+        url
+      )}`,
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+        text
+      )}&url=${encodeURIComponent(url)}`,
+      linkedin: `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(
+        url
+      )}&title=${encodeURIComponent(
+        "Street Food Hygiene Report"
+      )}&summary=${encodeURIComponent(text)}`,
+    };
+
+    window.open(shareUrls[platform as keyof typeof shareUrls], "_blank");
+  };
+
+  const ShareButtons = () => (
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        className="text-green-600 hover:text-green-700"
+        onClick={handleShareWhatsApp}
+      >
+        <MessageSquare className="h-4 w-4 mr-2" />
+        Share via WhatsApp
+      </Button>
+
+      <div className="flex gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleShareSocial("facebook")}
+          className="text-blue-600 hover:text-blue-700"
+        >
+          <Facebook className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleShareSocial("twitter")}
+          className="text-sky-500 hover:text-sky-600"
+        >
+          <Twitter className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleShareSocial("linkedin")}
+          className="text-blue-700 hover:text-blue-800"
+        >
+          <Linkedin className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <Card className="w-full animate-pulse">
@@ -507,15 +585,18 @@ const HygieneReportCard = ({
           </ul>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between items-center">
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-street-orange"
-          onClick={handleDownloadReport}
-        >
-          Download Report
-        </Button>
+      <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-street-orange"
+            onClick={handleDownloadReport}
+          >
+            Download Report
+          </Button>
+          <ShareButtons />
+        </div>
         <div className="flex gap-2">
           <Badge variant="outline" className="cursor-default">
             TensorFlow.js

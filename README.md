@@ -76,3 +76,15 @@ npx prisma migrate dev --name init
 # Verify database
 
 npx prisma studio
+
+# Reset the database and migrations
+
+npx prisma migrate reset --force
+
+# Create and apply new migration
+
+npx prisma migrate dev --name init_with_path
+
+# Generate Prisma client
+
+npx prisma generate
